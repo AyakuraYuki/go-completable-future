@@ -22,11 +22,12 @@ func Execute(futures ...*CompletableFuture) error {
 	}
 
 	var wg sync.WaitGroup
+	wg.Add(len(futures))
+
 	doneChan := make(chan bool)
 	errChan := make(chan error)
 
 	for _, future := range futures {
-		wg.Add(1)
 
 		go func(future *CompletableFuture) {
 			defer wg.Done()
@@ -56,6 +57,7 @@ func Execute(futures ...*CompletableFuture) error {
 			}
 
 		}(future)
+
 	}
 
 	go func() {
@@ -79,10 +81,11 @@ func Run(futures ...*CompletableFuture) {
 	}
 
 	var wg sync.WaitGroup
+	wg.Add(len(futures))
+
 	doneChan := make(chan bool)
 
 	for _, future := range futures {
-		wg.Add(1)
 
 		go func(future *CompletableFuture) {
 			defer wg.Done()
@@ -110,6 +113,7 @@ func Run(futures ...*CompletableFuture) {
 			}
 
 		}(future)
+
 	}
 
 	go func() {

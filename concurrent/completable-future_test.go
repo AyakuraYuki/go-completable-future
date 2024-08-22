@@ -2,6 +2,9 @@ package concurrent
 
 import (
 	"errors"
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
 	"time"
 )
@@ -95,5 +98,53 @@ func TestCompletableFuture_Get(t *testing.T) {
 	numB := future.Get().(int)
 	if numA != numB {
 		t.Fatalf("future a: result is not the same as future b")
+	}
+}
+
+func TestExecute_stabilize_1(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			defer wg.Done()
+
+			futures := make([]*CompletableFuture, 0)
+			for j := 0; j < 100; j++ {
+				futures = append(futures, SupplyAsync(func() (any, error) {
+					return rand.Intn(100), nil
+				}))
+			}
+
+			if err := Execute(futures...); err != nil {
+				fmt.Println(err)
+			}
+
+			for _, future := range futures {
+				fmt.Println("iter:", i, ", ret:", future.Get())
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestExecute_stabilize_2(t *testing.T) {
+	numbers := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	futures := make([]*CompletableFuture, 0)
+	for i := 0; i < 100000; i++ {
+		futures = append(futures, SupplyAsync(func() (any, error) {
+			rn := rand.Intn(len(numbers))
+			return []int{rn, numbers[rn]}, nil
+		}))
+	}
+	if err := Execute(futures...); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, future := range futures {
+		ret := future.Get().([]int)
+		if ret[1] != numbers[ret[0]] {
+			t.Fatalf("unexpected random number ret: %v", ret)
+		}
 	}
 }
