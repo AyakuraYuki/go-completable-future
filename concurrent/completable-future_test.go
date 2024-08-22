@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -101,33 +102,33 @@ func TestCompletableFuture_Get(t *testing.T) {
 	}
 }
 
-func TestExecute_stabilize_1(t *testing.T) {
+func TestExecute_stabilize_futuresInGoroutine(t *testing.T) {
+	// Multiple CompletableFuture futures in goroutine
+
 	var wg sync.WaitGroup
-	wg.Add(100)
-	for i := 0; i < 100; i++ {
+	wg.Add(1000)
+	for i := 0; i < 1000; i++ {
 		go func() {
 			defer wg.Done()
 
 			futures := make([]*CompletableFuture, 0)
-			for j := 0; j < 100; j++ {
+			for j := 0; j < 1000; j++ {
 				futures = append(futures, SupplyAsync(func() (any, error) {
-					return rand.Intn(100), nil
+					return j + 1, nil
 				}))
 			}
 
 			if err := Execute(futures...); err != nil {
 				fmt.Println(err)
 			}
-
-			for _, future := range futures {
-				fmt.Println("iter:", i, ", ret:", future.Get())
-			}
 		}()
 	}
 	wg.Wait()
 }
 
-func TestExecute_stabilize_2(t *testing.T) {
+func TestExecute_stabilize_accuracy(t *testing.T) {
+	// accuracy in CompletableFuture
+
 	numbers := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 	futures := make([]*CompletableFuture, 0)
@@ -147,4 +148,50 @@ func TestExecute_stabilize_2(t *testing.T) {
 			t.Fatalf("unexpected random number ret: %v", ret)
 		}
 	}
+}
+
+func TestExecute_stabilize_write(t *testing.T) {
+	// counter write
+
+	futures := make([]*CompletableFuture, 0)
+	counter := 0
+	for i := 0; i < 100000; i++ {
+		futures = append(futures, RunAsync(func() error {
+			counter += 1 // non-thread-safe write
+			return nil
+		}))
+	}
+	if err := Execute(futures...); err != nil {
+		t.Fatal(err)
+	}
+	if counter > 100000 { // counter should less or equals to 100000
+		t.Fatalf("unexpected times in counter")
+	}
+
+	futures = make([]*CompletableFuture, 0)
+	var atomicCounter atomic.Int64
+	for i := 0; i < 100000; i++ {
+		futures = append(futures, RunAsync(func() error {
+			atomicCounter.Add(1) // thread-safe write
+			return nil
+		}))
+	}
+	if err := Execute(futures...); err != nil {
+		t.Fatal(err)
+	}
+	if atomicCounter.Load() != 100000 { // atomic counter should equal to 100000
+		t.Fatalf("unexpected times in atomic counter")
+	}
+}
+
+func BenchmarkExecute(b *testing.B) {
+	b.ReportAllocs()
+	futures := make([]*CompletableFuture, 0)
+	for i := 0; i < b.N; i++ {
+		futures = append(futures, SupplyAsync(func() (any, error) {
+			return rand.Intn(1000) + 1, nil
+		}))
+	}
+	b.ResetTimer()
+	_ = Execute(futures...)
 }
