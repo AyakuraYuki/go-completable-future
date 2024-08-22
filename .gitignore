@@ -1,0 +1,18 @@
+### JetBrains
+.idea
+*.iml
+### Protobuf Gen
+pbgen
+pbgen/service/
+### macOS
+.DS_Store
+
+### build
+build
+
+### dist
+images
+data_list.json
+bilibili-wallpaper
+
+vendor/
