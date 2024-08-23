@@ -6,6 +6,20 @@ A simple implementation of CompletableFuture's basic `RunAsync` and `SupplyAsync
 
 ## Usage
 
+```go
+package main
+
+import (
+	"github.com/AyakuraYuki/go-concurrent/concurrent"
+	"github.com/AyakuraYuki/go-concurrent/futuretask"
+)
+
+func main() {
+	// do something
+}
+
+```
+
 ### futuretask
 
 > For more detail, please see [`example/example-futuretask.go`](https://github.com/AyakuraYuki/go-concurrent/blob/main/example/example-futuretask.go)
