@@ -3,7 +3,7 @@ package example
 import (
 	"errors"
 	"fmt"
-	"github.com/AyakuraYuki/go-completable-future/futuretask"
+	"github.com/AyakuraYuki/go-concurrent/futuretask"
 	"math/rand"
 	"time"
 )

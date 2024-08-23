@@ -1,3 +1,3 @@
-module github.com/AyakuraYuki/go-completable-future
+module github.com/AyakuraYuki/go-concurrent
 
 go 1.23.0

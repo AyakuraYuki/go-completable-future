@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/AyakuraYuki/go-completable-future/concurrent"
+	"github.com/AyakuraYuki/go-concurrent/concurrent"
 )
 
 // case 1: run async

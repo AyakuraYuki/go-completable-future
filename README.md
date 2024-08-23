@@ -1,4 +1,4 @@
-# go-completable-future
+# go-concurrent
 
 CompletableFuture in Golang.
 
@@ -8,7 +8,7 @@ A simple implementation of CompletableFuture's basic `RunAsync` and `SupplyAsync
 
 ### futuretask
 
-> For more detail, please see [`example/example-futuretask.go`](https://github.com/AyakuraYuki/go-completable-future/blob/main/example/example-futuretask.go)
+> For more detail, please see [`example/example-futuretask.go`](https://github.com/AyakuraYuki/go-concurrent/blob/main/example/example-futuretask.go)
 
 ```go
 package demo
@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/AyakuraYuki/go-completable-future/futuretask"
+	"github.com/AyakuraYuki/go-concurrent/futuretask"
 )
 
 func demoExecute() {
@@ -65,7 +65,7 @@ func demoRun() {
 
 ### concurrent
 
-> For more detail, please see [`example/example-completable-future.go`](https://github.com/AyakuraYuki/go-completable-future/blob/main/example/example-completable-future.go)
+> For more detail, please see [`example/example-completable-future.go`](https://github.com/AyakuraYuki/go-concurrent/blob/main/example/example-completable-future.go)
 
 ```go
 package demo
@@ -73,7 +73,7 @@ package demo
 import (
 	"errors"
 	"fmt"
-	"github.com/AyakuraYuki/go-completable-future/concurrent"
+	"github.com/AyakuraYuki/go-concurrent/concurrent"
 	"log"
 )
 
