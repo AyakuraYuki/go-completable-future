@@ -3,9 +3,10 @@ package example
 import (
 	"errors"
 	"fmt"
-	"github.com/AyakuraYuki/go-concurrent/futuretask"
 	"math/rand"
 	"time"
+
+	"github.com/AyakuraYuki/go-concurrent/futuretask"
 )
 
 // case 1: execute multiple tasks

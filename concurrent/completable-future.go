@@ -2,6 +2,8 @@ package concurrent
 
 import "sync/atomic"
 
+// RunAsync creates a CompletableFuture with runnable function,
+// then executes the runnable immediately in async.
 func RunAsync(f func() error) *CompletableFuture[any] {
 	future := &CompletableFuture[any]{
 		r: &runnable{run: f},
@@ -10,7 +12,8 @@ func RunAsync(f func() error) *CompletableFuture[any] {
 	return future
 }
 
-// Wait all runnable *CompletableFuture[T] done, futures must defined in same Type
+// Wait for all the *CompletableFuture[T] to complete execution.
+// Each element in the array must be declared with the same type.
 func Wait[T any](futures ...*CompletableFuture[T]) {
 	if len(futures) == 0 {
 		return
@@ -20,6 +23,9 @@ func Wait[T any](futures ...*CompletableFuture[T]) {
 	}
 }
 
+// SupplyAsync creates a CompletableFuture with supplier function,
+// then executes the supplier immediately in async.
+// After supplier done, the result will be cached into future.result.
 func SupplyAsync[T any](f func() (T, error)) *CompletableFuture[T] {
 	future := &CompletableFuture[T]{
 		s:          &supplier[T]{get: f},
@@ -29,6 +35,7 @@ func SupplyAsync[T any](f func() (T, error)) *CompletableFuture[T] {
 	return future
 }
 
+// CompletableFuture defines a unit of future tasks and allows the running of a supplier/runnable function.
 type CompletableFuture[T any] struct {
 	s          *supplier[T] // supplier future
 	resultChan chan T       // result channel
@@ -40,20 +47,28 @@ type CompletableFuture[T any] struct {
 	err  error // error holder
 }
 
+// Result returns both result and error from CompletableFuture, it will block until the task is done.
 func (future *CompletableFuture[T]) Result() (T, error) {
 	result := future.Get()
 	err := future.Err()
 	return result, err
 }
 
+// Get the result from CompletableFuture and ignore the error, it will block until the task is done.
+// Note that a runnable CompletableFuture has no result.
 func (future *CompletableFuture[T]) Get() T {
-	if future.result != nil {
-		return *future.result
+	var empty T
+
+	if future.s == nil {
+		return empty // only supplier will return result, nothing can be returned from a runnable
 	}
 
-	future.Wait()
+	if future.result != nil {
+		return *future.result // result has been cached to future.result
+	}
 
-	var empty T
+	future.Wait() // wait for the task done
+
 	if len(future.resultChan) == 0 {
 		return empty
 	}
@@ -69,15 +84,18 @@ func (future *CompletableFuture[T]) Get() T {
 	return result
 }
 
+// Err returns an error from CompletableFuture, it will block until the task is done.
 func (future *CompletableFuture[T]) Err() error {
 	future.Wait()
 	return future.err
 }
 
+// IsDone indicates whether the CompletableFuture is done or not.
 func (future *CompletableFuture[T]) IsDone() bool {
 	return future.done.Load()
 }
 
+// Wait blocks the invoker until this CompletableFuture is done.
 func (future *CompletableFuture[T]) Wait() {
 	for {
 		if future.done.Load() {

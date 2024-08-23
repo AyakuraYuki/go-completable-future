@@ -61,6 +61,16 @@ func TestWait(t *testing.T) {
 	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
 }
 
+func TestRunAsync_Get(t *testing.T) {
+	future := RunAsync(func() error {
+		return nil
+	})
+	Wait(future)
+	if got := future.Get(); got != nil {
+		t.Fatalf("future.Get() = %#v, want nil", got)
+	}
+}
+
 func TestRunAsync_Err(t *testing.T) {
 	futureA := RunAsync(func() error {
 		time.Sleep(500 * time.Millisecond)

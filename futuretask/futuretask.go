@@ -2,12 +2,14 @@ package futuretask
 
 import "sync"
 
+// PlanRun creates a future task with a runnable function.
 func PlanRun(f func() error) *Task {
 	return &Task{
 		r: &runnable{run: f},
 	}
 }
 
+// PlanSupply creates a future task with a supplier function
 func PlanSupply(f func() (any, error)) *Task {
 	return &Task{
 		s:          &supplier{get: f},
@@ -15,7 +17,7 @@ func PlanSupply(f func() (any, error)) *Task {
 	}
 }
 
-// Execute given Task, returns error if one of the Task resulting error.
+// Execute the given tasks, and return an error if one of the tasks results in an error.
 func Execute(futures ...*Task) error {
 	if len(futures) == 0 {
 		return nil
@@ -74,7 +76,8 @@ func Execute(futures ...*Task) error {
 	}
 }
 
-// Run given Task without returning error, you should handle error manually in each Task.
+// Run the given tasks, it will block until all the tasks are done.
+// Because Run does not return errors, you should handle the error manually.
 func Run(futures ...*Task) {
 	if len(futures) == 0 {
 		return
@@ -127,6 +130,7 @@ func Run(futures ...*Task) {
 	}
 }
 
+// Task defines a unit of future tasks and allow the running of supplier/runnable function.
 type Task struct {
 	s          *supplier // supplier future
 	resultChan chan any  // result channel
@@ -137,31 +141,44 @@ type Task struct {
 	err error // error holder
 }
 
-func (future *Task) Result() (any, error) {
-	result := future.Get()
-	err := future.Err()
+// Result returns both result and error from Task, it will block until the task is done.
+func (task *Task) Result() (any, error) {
+	result := task.Get()
+	err := task.Err()
 	return result, err
 }
 
-func (future *Task) Get() any {
-	if future.result != nil {
-		return future.result
-	}
+// Get the result from Task and ignore the error, it will block until the task is done.
+// Note that a runnable Task has no result.
+func (task *Task) Get() any {
 	var empty any
-	if len(future.resultChan) == 0 {
+
+	if task.s == nil {
+		return empty // only supplier will return result, nothing can be returned from a runnable
+	}
+
+	if task.result != nil {
+		return task.result // result has been cached to task.result
+	}
+
+	if len(task.resultChan) == 0 {
 		return empty
 	}
-	result, ok := <-future.resultChan
+
+	result, ok := <-task.resultChan
 	if !ok {
 		return empty
 	}
-	future.result = result
-	close(future.resultChan)
-	return future.result
+	task.result = result
+
+	close(task.resultChan) // close the channels immediately after reading and caching the result
+
+	return task.result
 }
 
-func (future *Task) Err() error {
-	return future.err
+// Err returns an error from Task, it will block until the task is done.
+func (task *Task) Err() error {
+	return task.err
 }
 
 type supplier struct {
