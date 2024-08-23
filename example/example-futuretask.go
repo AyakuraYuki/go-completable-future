@@ -3,30 +3,30 @@ package example
 import (
 	"errors"
 	"fmt"
-	"github.com/AyakuraYuki/go-completable-future/concurrent"
+	"github.com/AyakuraYuki/go-completable-future/futuretask"
 	"math/rand"
 	"time"
 )
 
 // case 1: execute multiple tasks
 func executeMultipleTasks() {
-	futureA := concurrent.SupplyAsync(func() (any, error) {
+	futureA := futuretask.PlanSupply(func() (any, error) {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 		return rand.Intn(100), nil
 	})
 
-	futureB := concurrent.SupplyAsync(func() (any, error) {
+	futureB := futuretask.PlanSupply(func() (any, error) {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 		return "bilibili", nil
 	})
 
-	futureC := concurrent.RunAsync(func() error {
+	futureC := futuretask.PlanRun(func() error {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 		return errors.New("raise error")
 	})
 
 	// You can't get result from any CompletableFuture if [concurrent.Execute] returns an error.
-	if err := concurrent.Execute(futureA, futureB, futureC); err != nil {
+	if err := futuretask.Execute(futureA, futureB, futureC); err != nil {
 		//panic(err) // Usually you should return the error, or panic it, or write the error message to logger.
 
 		fmt.Println("caught error:", err) // For this demo, I will print the error message.
@@ -45,24 +45,24 @@ func executeMultipleTasks() {
 
 // case 2: run multiple tasks and handle errors manually
 func runMultipleTasks() {
-	futureA := concurrent.SupplyAsync(func() (any, error) {
+	futureA := futuretask.PlanSupply(func() (any, error) {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 		return rand.Intn(100), nil
 	})
 
-	futureB := concurrent.SupplyAsync(func() (any, error) {
+	futureB := futuretask.PlanSupply(func() (any, error) {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 		return "bilibili", nil
 	})
 
-	futureC := concurrent.RunAsync(func() error {
+	futureC := futuretask.PlanRun(func() error {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 		return errors.New("raise error")
 	})
 
 	// [concurrent.Run] executes futures without return error,
 	// so you should handle error MANUALLY in each CompletableFuture.
-	concurrent.Run(futureA, futureB, futureC)
+	futuretask.Run(futureA, futureB, futureC)
 
 	resultA, errA := futureA.Result()
 	if errA != nil {

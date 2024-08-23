@@ -10,188 +10,268 @@ import (
 	"time"
 )
 
-func TestExecute(t *testing.T) {
-	futureA := SupplyAsync(func() (any, error) {
+func TestRunAsync_Wait(t *testing.T) {
+	futureA := RunAsync(func() error {
+		time.Sleep(500 * time.Millisecond)
+		t.Log("future a: after 500ms")
+		return nil
+	})
+
+	futureB := RunAsync(func() error {
+		time.Sleep(200 * time.Millisecond)
+		t.Log("future b: after 200ms")
+		return nil
+	})
+
+	futureC := RunAsync(func() error {
+		time.Sleep(100 * time.Millisecond)
+		t.Log("future c: after 100ms, raise error")
+		return errors.New("raise error")
+	})
+
+	// wait for all future done
+	st := time.Now().UnixMilli()
+	futureA.Wait()
+	futureB.Wait()
+	futureC.Wait()
+	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
+}
+
+func TestWait(t *testing.T) {
+	futureA := RunAsync(func() error {
 		time.Sleep(2 * time.Second)
-		t.Log("future a: done")
-		return int64(2233), nil
+		t.Log("future a: after 2s")
+		return nil
 	})
 
 	futureB := RunAsync(func() error {
 		time.Sleep(500 * time.Millisecond)
-		t.Log("future b: run async")
+		t.Log("future b: after 500ms")
 		return nil
 	})
 
-	holder := ""
 	futureC := RunAsync(func() error {
-		time.Sleep(1*time.Second + 450*time.Millisecond)
-		holder = "bilibili"
-		t.Log(`future c: assigned holder by "bilibili"`)
-		return nil
+		time.Sleep(1 * time.Second)
+		t.Log("future c: after 1s, raise error")
+		return errors.New("raise error")
 	})
 
-	if err := Execute(futureA, futureB, futureC); err != nil {
-		t.Fatalf("unexpected error raised: %v", err)
-	}
-
-	resultA := futureA.Get()
-	if resultA == nil {
-		t.Fatalf("future a: result is nil")
-	}
-	if val, ok := resultA.(int64); !ok || val != int64(2233) {
-		t.Fatalf("future a: result is not int64 or is not 2233 in int64")
-	}
-
-	if holder != "bilibili" {
-		t.Fatalf(`future c: holder is not "bilibili" in string`)
-	}
+	st := time.Now().UnixMilli()
+	Wait(futureA, futureB, futureC)
+	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
 }
 
-func TestRun(t *testing.T) {
+func TestRunAsync_Err(t *testing.T) {
 	futureA := RunAsync(func() error {
-		time.Sleep(2 * time.Second)
-		t.Log("future a: done")
+		time.Sleep(500 * time.Millisecond)
+		t.Log("future a: after 500ms")
 		return nil
 	})
 
 	futureB := RunAsync(func() error {
-		time.Sleep(1 * time.Second)
-		t.Log("future b: raise error")
+		time.Sleep(200 * time.Millisecond)
+		t.Log("future b: after 200ms")
+		return nil
+	})
+
+	futureC := RunAsync(func() error {
+		time.Sleep(100 * time.Millisecond)
+		t.Log("future c: after 100ms, raise error")
 		return errors.New("raise error")
 	})
 
-	futureC := SupplyAsync(func() (any, error) {
-		time.Sleep(time.Second + 450*time.Millisecond)
-		t.Log("future c: return result and raise error")
-		return int64(2233), errors.New("bilibili")
-	})
-
-	Run(futureA, futureB, futureC)
-
+	// wait and handle error from completed future
+	st := time.Now().UnixMilli()
 	if err := futureA.Err(); err != nil {
 		t.Fatalf("unexpected error raised from future a: %v", err)
 	}
-
-	if err := futureB.Err(); err == nil {
-		t.Fatal("expected an error raised from future b, but got nothing")
+	if err := futureB.Err(); err != nil {
+		t.Fatalf("unexpected error raised from future b: %v", err)
 	}
-
-	resultC, err := futureC.Result()
-	if resultC == nil {
-		t.Fatalf("expected a result from future c, but got nil")
+	if err := futureC.Err(); err == nil {
+		t.Fatal("expect an error from future c, but got nil")
 	}
-	if val, ok := resultC.(int64); !ok || val != int64(2233) {
-		t.Fatalf("future c: result is not int64 or is not 2233 in int64")
-	}
-	if err == nil {
-		t.Fatalf("expected an error raised from future c, but got nothing")
-	}
+	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
 }
 
-func TestCompletableFuture_Get(t *testing.T) {
-	// call Get() multiple times
-	future := SupplyAsync(func() (any, error) {
+func TestSupplyAsync_Get(t *testing.T) {
+	futureA := SupplyAsync(func() (int64, error) {
+		time.Sleep(500 * time.Millisecond)
 		return 2233, nil
 	})
-	Run(future)
-	numA := future.Get()
-	numB := future.Get().(int)
-	if numA != numB {
-		t.Fatalf("future a: result is not the same as future b")
+
+	futureB := SupplyAsync(func() (string, error) {
+		time.Sleep(200 * time.Millisecond)
+		return "bilibili", nil
+	})
+
+	type foo struct {
+		Val string `json:"val"`
 	}
+	futureC := SupplyAsync(func() (*foo, error) {
+		time.Sleep(1 * time.Second)
+		return &foo{Val: "bilibili"}, nil
+	})
+
+	st := time.Now().UnixMilli()
+
+	if res, err := futureA.Result(); err != nil {
+		t.Fatalf("unexpected error raised from future a: %v", err)
+	} else {
+		t.Log("future a:", res)
+	}
+
+	if res, err := futureB.Result(); err != nil {
+		t.Fatalf("unexpected error raised from future b: %v", err)
+	} else {
+		t.Log("future b:", res)
+	}
+
+	if res, err := futureC.Result(); err != nil {
+		t.Fatalf("unexpected error raised from future c: %v", err)
+	} else {
+		t.Logf("future c: %#v", res)
+	}
+
+	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
 }
 
-func TestExecute_stabilize_futuresInGoroutine(t *testing.T) {
-	// Multiple CompletableFuture futures in goroutine
+func TestSupplyAsync_GetMultipleTimes(t *testing.T) {
+	type foo struct {
+		Val string `json:"val"`
+	}
+	future := SupplyAsync(func() (*foo, error) {
+		time.Sleep(1 * time.Second)
+		return &foo{Val: "bilibili"}, nil
+	})
 
+	f1 := future.Get()
+	t.Logf("f1: %#v", f1)
+	f2 := future.Get()
+	t.Logf("f2: %#v, equals to f1: %t", f2, f2 == f1)
+	f3 := future.Get()
+	t.Logf("f3: %#v, equals to f1: %t, equals to f2: %t", f3, f3 == f1, f3 == f2)
+}
+
+func TestRunAsync_stabilize_futuresInGoroutine(t *testing.T) {
 	var wg sync.WaitGroup
-	wg.Add(1000)
-	for i := 0; i < 1000; i++ {
+	wg.Add(100)
+	st := time.Now().UnixMilli()
+	for i := 0; i < 100; i++ {
 		go func() {
 			defer wg.Done()
-
-			futures := make([]*CompletableFuture, 0)
-			for j := 0; j < 1000; j++ {
-				futures = append(futures, SupplyAsync(func() (any, error) {
-					return j + 1, nil
+			futures := make([]*CompletableFuture[any], 0)
+			for j := 0; j < 100; j++ {
+				futures = append(futures, RunAsync(func() error {
+					fmt.Printf("i: %d, j: %d\n", i, j)
+					return nil
 				}))
 			}
-
-			if err := Execute(futures...); err != nil {
-				fmt.Println(err)
-			}
+			Wait(futures...)
 		}()
 	}
 	wg.Wait()
+	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
+	// success if there's no panic
 }
 
-func TestExecute_stabilize_accuracy(t *testing.T) {
-	// accuracy in CompletableFuture
+func TestSupplyAsync_stabilize_futuresInGoroutine(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1000)
+	st := time.Now().UnixMilli()
+	for i := 0; i < 1000; i++ {
+		go func() {
+			defer wg.Done()
+			futures := make([]*CompletableFuture[int], 0)
+			for j := 0; j < 1000; j++ {
+				futures = append(futures, SupplyAsync(func() (int, error) {
+					return i + j, nil
+				}))
+			}
+			Wait(futures...)
+		}()
+	}
+	wg.Wait()
+	t.Logf("done (%dms)", time.Now().UnixMilli()-st)
+	// success if there's no panic
+}
 
-	numbers := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+func TestSupplyAsync_accuracy(t *testing.T) {
+	numbers := []int{5, 4, 6, 1, 2, 8, 7, 9, 3, 0}
 
-	futures := make([]*CompletableFuture, 0)
-	for i := 0; i < 100000; i++ {
-		futures = append(futures, SupplyAsync(func() (any, error) {
+	futures := make([]*CompletableFuture[[]int], 0)
+	st := time.Now().UnixMilli()
+	for i := 0; i < 1000000; i++ {
+		futures = append(futures, SupplyAsync(func() ([]int, error) {
 			rn := rand.Intn(len(numbers))
 			return []int{rn, numbers[rn]}, nil
 		}))
 	}
-	if err := Execute(futures...); err != nil {
-		t.Fatal(err)
-	}
+	Wait(futures...)
+	t.Logf("spent (%dms)", time.Now().UnixMilli()-st)
 
-	for _, future := range futures {
-		ret := future.Get().([]int)
+	for i, future := range futures {
+		ret := future.Get()
 		if ret[1] != numbers[ret[0]] {
 			t.Fatalf("unexpected random number ret: %v", ret)
+		}
+		if i < 10 {
+			t.Log(ret, numbers[ret[0]]) // show top 10
 		}
 	}
 }
 
-func TestExecute_stabilize_write(t *testing.T) {
-	// counter write
+func TestRunAsync_write(t *testing.T) {
+	times := 1000000
 
-	futures := make([]*CompletableFuture, 0)
+	futures := make([]*CompletableFuture[any], 0)
 	counter := 0
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < times; i++ {
 		futures = append(futures, RunAsync(func() error {
 			counter += 1 // non-thread-safe write
 			return nil
 		}))
 	}
-	if err := Execute(futures...); err != nil {
-		t.Fatal(err)
-	}
-	if counter > 100000 { // counter should less or equals to 100000
-		t.Fatalf("unexpected times in counter")
+	Wait(futures...)
+	if counter > times { // counter should less or equals to times
+		t.Fatalf("unexpected counter: %d", counter)
 	}
 
-	futures = make([]*CompletableFuture, 0)
+	futures = make([]*CompletableFuture[any], 0)
 	var atomicCounter atomic.Int64
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < times; i++ {
 		futures = append(futures, RunAsync(func() error {
-			atomicCounter.Add(1) // thread-safe write
+			atomicCounter.Add(1)
 			return nil
 		}))
 	}
-	if err := Execute(futures...); err != nil {
-		t.Fatal(err)
-	}
-	if atomicCounter.Load() != 100000 { // atomic counter should equal to 100000
-		t.Fatalf("unexpected times in atomic counter")
+	Wait(futures...)
+	if atomicCounter.Load() != int64(times) { // atomic counter should equal to times
+		t.Fatalf("unexpected counter: %d", atomicCounter.Load())
 	}
 }
 
-func BenchmarkExecute(b *testing.B) {
-	b.ReportAllocs()
-	futures := make([]*CompletableFuture, 0)
+func BenchmarkRunAsync(b *testing.B) {
+	futures := make([]*CompletableFuture[any], 0)
 	for i := 0; i < b.N; i++ {
-		futures = append(futures, SupplyAsync(func() (any, error) {
-			return rand.Intn(1000) + 1, nil
+		futures = append(futures, RunAsync(func() error {
+			rn := rand.Intn(100)
+			if rn < 50 {
+				return nil
+			} else {
+				return errors.New("case error")
+			}
 		}))
 	}
-	b.ResetTimer()
-	_ = Execute(futures...)
+	Wait(futures...)
+}
+
+func BenchmarkSupplyAsync(b *testing.B) {
+	futures := make([]*CompletableFuture[int], 0)
+	for i := 0; i < b.N; i++ {
+		futures = append(futures, SupplyAsync(func() (int, error) {
+			return i, nil
+		}))
+	}
+	Wait(futures...)
 }
