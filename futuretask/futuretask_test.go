@@ -184,6 +184,24 @@ func TestExecute_stabilize_write(t *testing.T) {
 	}
 }
 
+func TestExecute_panicRecover(t *testing.T) {
+	future := PlanSupply(func() (any, error) { return int64(2233), nil })
+	panicFuture := PlanRun(func() error { panic("panic simulation") })
+	err := Execute(future, panicFuture)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
+func TestRun_panicRecover(t *testing.T) {
+	future := PlanSupply(func() (any, error) { return int64(2233), nil })
+	panicFuture := PlanRun(func() error { panic("panic simulation") })
+	Run(future, panicFuture)
+	if err := panicFuture.Err(); err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
 func BenchmarkExecute(b *testing.B) {
 	b.ReportAllocs()
 	futures := make([]*Task, 0)

@@ -1,6 +1,10 @@
 package concurrent
 
-import "sync/atomic"
+import (
+	"errors"
+	"fmt"
+	"sync/atomic"
+)
 
 // RunAsync creates a CompletableFuture with runnable function,
 // then executes the runnable immediately in async.
@@ -106,6 +110,11 @@ func (future *CompletableFuture[T]) Wait() {
 
 func (future *CompletableFuture[T]) execute() {
 	defer future.done.Store(true)
+	defer func() {
+		if err := recover(); err != nil {
+			future.err = errors.New(fmt.Sprint(err))
+		}
+	}()
 
 	if future == nil || (future.r == nil && future.s == nil) {
 		future.close()

@@ -1,6 +1,10 @@
 package futuretask
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"sync"
+)
 
 // PlanRun creates a future task with a runnable function.
 func PlanRun(f func() error) *Task {
@@ -33,6 +37,12 @@ func Execute(futures ...*Task) error {
 
 		go func(future *Task) {
 			defer wg.Done()
+			defer func() {
+				if err := recover(); err != nil {
+					future.err = errors.New(fmt.Sprint(err))
+					errChan <- future.err
+				}
+			}()
 
 			s := future.s
 			r := future.r
@@ -92,6 +102,11 @@ func Run(futures ...*Task) {
 
 		go func(future *Task) {
 			defer wg.Done()
+			defer func() {
+				if err := recover(); err != nil {
+					future.err = errors.New(fmt.Sprint(err))
+				}
+			}()
 
 			s := future.s
 			r := future.r

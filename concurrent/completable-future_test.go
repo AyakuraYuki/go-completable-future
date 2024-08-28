@@ -261,6 +261,16 @@ func TestRunAsync_write(t *testing.T) {
 	}
 }
 
+func TestExecute_panicRecover(t *testing.T) {
+	future := SupplyAsync(func() (int64, error) { return 2233, nil })
+	panicFuture := RunAsync(func() error { panic("panic simulation") })
+	time.Sleep(1 * time.Second)
+	t.Log(future.Get())
+	if err := panicFuture.Err(); err == nil {
+		t.Fatal("expected an error")
+	}
+}
+
 func BenchmarkRunAsync(b *testing.B) {
 	futures := make([]*CompletableFuture[any], 0)
 	for i := 0; i < b.N; i++ {
